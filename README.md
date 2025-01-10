@@ -1,0 +1,3 @@
+# ¯\\_(ツ)_/¯
+[![🛠️ Build To Dev 📦](https://github.com/DebuggerSage/react-2024-tuitorial/actions/workflows/main.yaml/badge.svg)](https://github.com/DebuggerSage/react-2024-tuitorial/actions/workflows/main.yaml)<br/>
+[![pages-build-deployment](https://github.com/DebuggerSage/react-2024-tuitorial/actions/workflows/pages/pages-build-deployment/badge.svg?branch=dev&event=push)](https://github.com/DebuggerSage/react-2024-tuitorial/actions/workflows/pages/pages-build-deployment)

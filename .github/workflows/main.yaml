@@ -1,0 +1,140 @@
+# .github/workflows/main.yaml
+name: 🛠️ Build To Dev 📦
+
+on:
+  push:
+    branches: ["main"] # Trigger on pushes to the main branch
+  workflow_dispatch:  # Allow manual triggering of the workflow
+
+permissions:
+  contents: write   # Allow writing to the repository
+  pages: write      # Required if deploying to GitHub Pages
+  id-token: write   # Enable if future authentication is needed
+
+concurrency:
+  group: "static-build-deploy"
+  cancel-in-progress: false
+
+jobs:
+  log-commit-msg:
+    name: "Capture Latest Commit Message"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Display Commit Message
+        run: echo "${{ github.event.head_commit.message }}"
+
+  push-dist:
+    name: Push Dist Folder to Dev Branch
+    runs-on: ubuntu-latest
+    needs: log-commit-msg  # Ensures this job runs after log-commit-msg
+    steps:
+      # Step 1: Display directory structure for debugging
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      # List files to debug the presence of utils.sh
+      #- name: List files for debugging
+      #  run: ls -la
+      
+      # Step 2: Make sure utils.sh is executable
+      - name: Make utils.sh executable
+        run: |
+          chmod +x .github/scripts/utils.sh 
+          
+      # Step 3: Display directory structure for debugging
+      - name: Display Directory Structure
+        run: |
+          source .github/scripts/utils.sh
+
+          echo "Current working directory:"
+          format_output "pwd"
+          echo "Directory listing:"
+          format_output "ls -la"
+
+      # Step 4: Install dependencies and build the React app
+      - name: Install and Build
+        run: |
+          source .github/scripts/utils.sh
+
+          # Function to display logs with color
+          display_log_with_color() {
+            cat /home/runner/.npm/_logs/* | while read line; do 
+              echo -e "${RED}│ ${line}${RESET}"
+            done
+            echo -e "${RED}╰──────────════════════════════════════──────────${RESET}"
+          }
+
+          echo -e "${BOLD_GREEN}Running npm install...${RESET}"
+          npm install || (
+            echo -e "${RED}╭────────═[ ${RED_RUST}Error: Failed to install dependencies.${RESET}${RED} ]═────────${RED}" 
+            display_log_with_color
+            exit 1
+          )
+
+          echo -e "${BOLD_GREEN}Running npm run build...${RESET}"
+          npm run build || (
+            echo -e "${RED}╭────────═[ ${RED_RUST}Error: Build failed.${RESET}${RED} ]═────────${RED}" 
+            display_log_with_color
+            exit 1
+          )
+
+      # Step 5: Check the dist folder exists or not  
+      - name: Check Dist Folder
+        run: |
+          source .github/scripts/utils.sh
+
+          if [ ! -d "dist" ]; then
+            echo -e "${RED_RUST}Error: 'dist' folder does not exist after build!${RESET}"
+            exit 1
+          fi
+          echo -e "${BOLD_GREEN}Build completed successfully.${RESET} \nContents of 'dist':"
+          format_output "ls -la dist"
+          
+      # Step 6: Copy contents of `dist` folder to the root of the repo
+      - name: Move Dist Contents to Root
+        run: |
+          rm -rf dist/.gitkeep # Optional: remove placeholder files
+          mv dist/* .
+          rm -rf dist # Cleanup: remove the `dist` folder after moving contents
+
+      # Step 7: Push dist folder to dev branch
+      - name: Push Dist to Dev Branch
+        run: |
+          source .github/scripts/utils.sh
+
+          # Set user details for commits made by GitHub Actions
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Set the remote URL using GitHub token for authentication
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+           
+          format_output "git stash -u"
+          format_output "git fetch origin dev"
+          format_output "git switch dev" 
+
+          # Removing unstaged files or folders i.e node_modules/
+          format_output "git clean -df" "$RED"
+          
+          # Apply the stashed changes and automatically resolve conflicts
+          exception_list=$(echo -e "error: could not restore untracked files from stash") # exception for this error
+          format_output "git stash pop" "$WHITE" "$exception_list"
+          format_output "git checkout --theirs ."         # Keep all changes from the stash by resolving merge conflicts and applying all incomming changes.
+          format_output "git stash clear"
+          format_output "git add ."
+          format_output "git restore --staged .github/"   # by default .github is ignored but since we added 'script' folder and file git will pick it up.
+
+          # Ensure there are changes before committing
+          if git diff --cached --quiet; then
+            echo -e "${LIME_GREEN}No changes to commit.${RESET}"
+          else
+            # Commit the changes with the date and commit message
+            CURRENT_DATE=$(date "+%A, %b %d, %Y %H:%M:%S")
+            format_output "git commit -m '[DEPLOYED] ${{ github.event.head_commit.message }} - at $CURRENT_DATE'"
+            format_output "git push origin dev"
+
+            echo -e "${BOLD_GREEN}Dev Branch Updated with Latest Build!${RESET}"
+          fi

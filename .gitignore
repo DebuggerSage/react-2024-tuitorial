@@ -1,0 +1,20 @@
+# ----------------------------------------------------------------------------
+# [DO NOT CHANGE THIS COMMENT]
+# Resource extractor exclusion for folder: '.resources'
+# This section is auto-managed by the resource extraction script.
+# ----------------------------------------------------------------------------
+
+# Exclude the '.resources' folder
+.resources
+
+# Exclude the script used for extraction (e.g., resource-loder.sh)
+resource-loder.sh
+
+# ----------------------------------------------------------------------------
+# End of resource extractor section
+# ----------------------------------------------------------------------------
+node_modules
+.DS_Store
+dist
+dist-ssr
+*.local
