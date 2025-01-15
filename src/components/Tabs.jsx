@@ -1,6 +1,7 @@
-export default function Tabs({children, buttons}) {
+export default function Tabs({children, buttons, ButtonContainer}) {
+    // const ButtonContainer = buttonContainer; // if the props were defined as 'buttonContainer'
     return <>
-    <menu>{buttons}</menu>
+    <ButtonContainer>{buttons}</ButtonContainer>
     {children}
     </>
 }
